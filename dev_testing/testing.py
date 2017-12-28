@@ -44,4 +44,7 @@ missing_pipeline = Pipeline([('new_cols', NewMissingColumn(cutoff=0)),
 new_X = missing_pipeline.fit_transform(train)
 new_X.shape
 
-
+DI = DiaImputer()
+DI.fit(train)
+new_X = DI.transform(train)
+new_X.shape

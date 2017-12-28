@@ -1,34 +1,62 @@
 import pandas as pd
 import numpy as np
 from sklearn.base import TransformerMixin
+from sklearn.preprocessing import OneHotEncoder
 import warnings
 import scipy.stats as ss
 
 ########################################################################################
 #
-# Create New Variables with
+# Impute values - median for categorical, user choice for
+#
+########################################################################################
+
+class DiaImputer(TransformerMixin):
+
+    def __init__(self, cutoff=0.02, ohe=True, cont_impute="median"):
+        self.cutoff = cutoff
+        self.ohe = ohe
+        self.cont_impute = cont_impute
+
+    def fit(self, X, y=None):
+        self.new_cols = NewMissingColumn(cutoff=self.cutoff).fit(X)
+        self.imputer = DataFrameImputer(cont_impute=self.cont_impute).fit(X)
+        #TODO: fix the OHE, NaN cannot be included here.  Needs to be transformed first.  Maybe keep it outside of here?
+        # if self.ohe:
+        #     self.one_hot = OneHotEncoder().fit(X)
+        return self
+
+    def transform(self, X):
+        new_X = self.new_cols.transform(X)
+        new_X = self.imputer.transform(new_X)
+        # if self.ohe:
+        #     new_X = self.one_hot.transform(new_X)
+        return new_X
+
+
+
+
+
+########################################################################################
+#
+# Create New Variables for columns with missing values above threshold
 #
 ########################################################################################
 
 
 class NewMissingColumn(TransformerMixin):
 
-    def __init__(self, cutoff=0.02, ohe=True, silent=False):
+    def __init__(self, cutoff=0.02):
         self.cutoff = cutoff
-        self.ohe = ohe
-        self.silent = silent
 
         # Throw errors if the inputted parameters don't meet the necessary criteria
         if (cutoff < 0) | (cutoff >= 1):
             raise ValueError('cutoff should be between 0 and 1. You entered' + str(cutoff))
 
     def fit(self, X, y=None):
-        #Does not require a y, but will accept it to conform to sklearn methods
         #Check if there are any NA values
         if X.isnull().values.any():
             self._new_column_id(X)
-            # if self.new_missing_column:
-            #     self._new_column_id(X)
         else:
             warnings.warn("No NA values in dataframe. Process Finished")
         return self
@@ -49,7 +77,6 @@ class NewMissingColumn(TransformerMixin):
         #Find the missing columns
         missing_columns = X.columns[X.isnull().any()]
 
-        ########Create the new columns for those with missing values
         # if above threshold, create new columns
         self.new_missing_columns = []
         for i in missing_columns:
@@ -76,7 +103,7 @@ class DataFrameImputer(TransformerMixin):
         """
 
         self.cont_impute = cont_impute
-        if(cont_impute not in ["mean", "median", "mode"]):
+        if cont_impute not in ["mean", "median", "mode"]:
             #Changes to something that will run, but does raise an error to user
             self.cont_impute = "median"
             warnings.warn("WARNING: " + str(cont_impute) + " is not a valid value. Reverting back to 'median'")
@@ -101,9 +128,7 @@ class DataFrameImputer(TransformerMixin):
                                   index=X.columns)
             else:
                 set_fill(self, X)
-
         return self
-
 
     def transform(self, X, y=None):
         return X.fillna(self.fill)
