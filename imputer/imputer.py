@@ -7,7 +7,7 @@ import scipy.stats as ss
 
 ########################################################################################
 #
-# Impute values - median for categorical, user choice for
+# DiaImputer to combine the other methods in this module
 #
 ########################################################################################
 
@@ -88,7 +88,7 @@ class NewMissingColumn(TransformerMixin):
 
 ########################################################################################
 #
-# Impute values - median for categorical, user choice for
+# Impute values - median for categorical, user choice for continuous
 #
 ########################################################################################
 #https://stackoverflow.com/questions/25239958/impute-categorical-missing-values-in-scikit-learn
