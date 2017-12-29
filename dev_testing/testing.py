@@ -13,10 +13,14 @@ train_url = 'http://archive.ics.uci.edu/ml/machine-learning-databases/madelon/MA
 raw_data = urllib.request.urlopen(train_url)
 train = pd.read_csv(raw_data, delim_whitespace=True, header=None)
 train.columns = ["Var"+str(x) for x in range(len(train.columns))]
+train = pd.get_dummies(train)
 labels_url = 'http://archive.ics.uci.edu/ml/machine-learning-databases/madelon/MADELON/madelon_train.labels'
 raw_data = urllib.request.urlopen(labels_url)
 labels = pd.read_csv(raw_data, delimiter=",", header=None)
 labels.columns = ["Y"]
+labels = (labels + 1) /2
+# labels = np.array(labels, dtype=int)
+labels = labels.Y.values
 
 
 train.iloc[1:4,1:10] = np.NaN
@@ -48,3 +52,24 @@ DI = DiaImputer()
 DI.fit(train)
 new_X = DI.transform(train)
 new_X.shape
+
+
+
+########################################################################################################################
+#
+#  Test stacking
+#
+########################################################################################################################
+from stacking.stacking import StackingAveragedModels
+GBoost = GradientBoostingClassifier()
+GBoost.fit(train, labels)
+GBoost.predict(train)
+
+stacker = StackingAveragedModels(regression=False)
+stacker.fit(train, labels)
+
+KRR = KernelRidge()
+ENet = ElasticNet()
+stacker = StackingAveragedModels(regression=False)
+stacker.fit(train, labels)
+stacker.predict(train)

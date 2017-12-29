@@ -1,7 +1,6 @@
 import pandas as pd
 import numpy as np
 from sklearn.base import TransformerMixin
-from sklearn.preprocessing import OneHotEncoder
 import warnings
 import scipy.stats as ss
 
@@ -13,24 +12,18 @@ import scipy.stats as ss
 
 class DiaImputer(TransformerMixin):
 
-    def __init__(self, cutoff=0.02, ohe=True, cont_impute="median"):
+    def __init__(self, cutoff=0.02, cont_impute="median"):
         self.cutoff = cutoff
-        self.ohe = ohe
         self.cont_impute = cont_impute
 
     def fit(self, X, y=None):
         self.new_cols = NewMissingColumn(cutoff=self.cutoff).fit(X)
         self.imputer = DataFrameImputer(cont_impute=self.cont_impute).fit(X)
-        #TODO: fix the OHE, NaN cannot be included here.  Needs to be transformed first.  Maybe keep it outside of here?
-        # if self.ohe:
-        #     self.one_hot = OneHotEncoder().fit(X)
         return self
 
     def transform(self, X):
         new_X = self.new_cols.transform(X)
         new_X = self.imputer.transform(new_X)
-        # if self.ohe:
-        #     new_X = self.one_hot.transform(new_X)
         return new_X
 
 
