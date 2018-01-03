@@ -44,7 +44,7 @@ class NewMissingColumn(TransformerMixin):
 
         # Throw errors if the inputted parameters don't meet the necessary criteria
         if (cutoff < 0) | (cutoff >= 1):
-            raise ValueError('cutoff should be between 0 and 1. You entered' + str(cutoff))
+            raise ValueError('cutoff ' + str(cutoff) + ' is not in the range [0, 1)')
 
     def fit(self, X, y=None):
         #Check if there are any NA values
