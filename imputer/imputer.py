@@ -28,8 +28,6 @@ class DiaImputer(TransformerMixin):
 
 
 
-
-
 ########################################################################################
 #
 # Create New Variables for columns with missing values above threshold
@@ -76,7 +74,6 @@ class NewMissingColumn(TransformerMixin):
             if (sum(X[i].isnull()) / nrow) > self.cutoff:
                 self.new_missing_columns.append(i)
         return self
-
 
 
 ########################################################################################
