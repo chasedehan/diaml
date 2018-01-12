@@ -66,6 +66,18 @@ X_train_minmax = min_max_scaler.fit_transform(X_train)
     #Also have scale() and StandardScalar() to scale the target variable
 
 
+#Another get dummies function - can probably handle it better above
+def GetCatDummies(X, ReplaceNA=True):
+    """Takes in a pd.DataFrame, checks for the categorical variables and returns a OHE DataFrame
+    This needs to be done after any ordinal transformations because the original variable is replaced"""
+    categoricals = []
+    for col, col_type in X.dtypes.iteritems():
+         if col_type == 'O':
+              categoricals.append(col)
+         else:
+              X[col].fillna(0, inplace=True)
+    return pd.get_dummies(X, columns=categoricals, dummy_na=ReplaceNA) #Default set to True
+
 
 
 
