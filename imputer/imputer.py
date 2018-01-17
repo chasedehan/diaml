@@ -12,13 +12,19 @@ import scipy.stats as ss
 
 class DiaImputer(TransformerMixin):
 
-    def __init__(self, cutoff=0.02, cont_impute="median"):
+    def __init__(self, cutoff=0.02, cont_impute=None, cat_impute=None, missing_value=None):
         self.cutoff = cutoff
         self.cont_impute = cont_impute
+        self.missing_value = missing_value
+        self.cat_impute = cat_impute
 
     def fit(self, X, y=None):
         self.new_cols = NewMissingColumn(cutoff=self.cutoff).fit(X)
-        self.imputer = DataFrameImputer(cont_impute=self.cont_impute).fit(X)
+        imputer_construct_dict = {}
+        if self.cont_impute is not None: imputer_construct_dict['cont_impute'] = self.cont_impute
+        if self.missing_value is not None: imputer_construct_dict['missing_value'] = self.missing_value
+        if self.cat_impute is not None: imputer_construct_dict['cat_impute'] = self.cat_impute
+        self.imputer = DataFrameImputer(**imputer_construct_dict).fit(X)
         return self
 
     def transform(self, X):
@@ -86,17 +92,24 @@ class NewMissingColumn(TransformerMixin):
 
 class DataFrameImputer(TransformerMixin):
 
-    def __init__(self, cont_impute="median"):
+    def __init__(self, cont_impute='median', cat_impute='mode', missing_value='missing'):
         """Impute missing values.
         Columns of dtype object are imputed with the most frequent value in column.
         Columns of other types are imputed with user selected (median as default) of column.
         """
+        try:
+            self.missing_value = str(missing_value)
+        except ValueError:
+            print("must enter missing_value parameter as a string")
+
+        if cont_impute not in ["mean", "median", "mode", "missing_value"]:
+            raise ValueError(str(cont_impute) + " is not a valid value for cont_impute. Must enter one of the following: ('mean', 'median', 'mode')")
+
+        if cat_impute not in ['mode', 'missing_value']:
+            raise ValueError(str(cat_impute) + " is not a valid value for cat_impute. Must enter one of the following: ('mode', 'missing_value')")
 
         self.cont_impute = cont_impute
-        if cont_impute not in ["mean", "median", "mode"]:
-            #Changes to something that will run, but does raise an error to user
-            self.cont_impute = "median"
-            warnings.warn("WARNING: " + str(cont_impute) + " is not a valid value. Reverting back to 'median'")
+        self.cat_impute = cat_impute
 
     def fit(self, X, y=None):
         def set_fill(self, X):
@@ -104,12 +117,20 @@ class DataFrameImputer(TransformerMixin):
                                    if X[c].dtype == np.dtype('O') else self.this_fun(X[c]) for c in X],
                                   index=X.columns)
 
+        def fill_cat_value(self, X):
+            self.fill = pd.Series([self.missing_value
+                                   if X[c].dtype == np.dtype('O') else self.this_fun(X[c]) for c in X],
+                                  index=X.columns)
+
         #Set the imputer desired for each of the imputer values desired
-            #This is super hacky because of trying to pull out the differing fill methods
+
         if self.cont_impute == 'mode':
             holder_fun = getattr(ss, 'mode')
-            self.this_fun = lambda x: holder_fun(x)[0][0] #This is weird, but it works (probably slow)
-            set_fill(self, X)
+            self.this_fun = lambda x: holder_fun(x)[0][0] #This is weird, but it works
+            if self.cat_impute == 'missing_value':
+                fill_cat_value(self, X)
+            else:
+                set_fill(self, X)
         else:
             self.this_fun = getattr(np, self.cont_impute)
             if self.cont_impute == 'median':
@@ -117,7 +138,10 @@ class DataFrameImputer(TransformerMixin):
                                   if X[c].dtype == np.dtype('O') else X[c].median() for c in X],
                                   index=X.columns)
             else:
-                set_fill(self, X)
+                if self.cat_impute == 'missing_value':
+                    fill_cat_value(self, X)
+                else:
+                    set_fill(self, X)
         return self
 
     def transform(self, X, y=None):

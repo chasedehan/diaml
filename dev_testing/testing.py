@@ -23,13 +23,15 @@ labels = (labels + 1) /2
 labels = labels.Y.values
 
 
+
+train[['Var1']] = train[['Var1']].astype(str)
 train.iloc[1:4,1:10] = np.NaN
 ########################################################################################################################
 #
 #  Test that imputer is working
 #
 ########################################################################################################################
-from imputer.imputer import NewMissingColumn, DataFrameImputer
+from imputer.imputer import NewMissingColumn, DataFrameImputer, DiaImputer
 
 new_cols = NewMissingColumn(cutoff=0)
 new_cols.fit(train)
@@ -37,9 +39,10 @@ new_X = new_cols.transform(train)
 new_X.shape
 
 #impute values according to user specifications
-dfi = DataFrameImputer(cont_impute="mode")
+dfi = DataFrameImputer(cont_impute="mode", cat_impute="missing_value", missing_value="-9999999")
 dfi.fit(train)
 new_X = dfi.transform(train)
+new_X.head()
 
 #So, stringing these together we see:
 from sklearn.pipeline import Pipeline
@@ -48,10 +51,11 @@ missing_pipeline = Pipeline([('new_cols', NewMissingColumn(cutoff=0)),
 new_X = missing_pipeline.fit_transform(train)
 new_X.shape
 
-DI = DiaImputer()
+DI = DiaImputer(cont_impute="mode")
 DI.fit(train)
 new_X = DI.transform(train)
 new_X.shape
+
 
 
 
