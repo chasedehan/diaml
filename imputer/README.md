@@ -13,6 +13,8 @@ There are two main classes, with one wrapper around the two:
 This module can be implemented in a similar manner to sklearns `fit()` and `transform()` and can be used in pipelines. 
 All classes in this module require data to be passed in as a pandas dataframe.  
 
+Once some more development has occurred on the entire DiaML package, it will be made available to pip install.  For now, you will either
+need to copy/paste or clone the repo.  
 
 ### NewMissingColumn
 We can create a new column for any existing column in X that has missing values greater than the cutoff.  The default cutoff
@@ -62,6 +64,8 @@ DI = DiaImputer(cutoff=0, cont_impute="mean", cat_impute="missing_value")
 new_X = DI.fit_transform(train)
 ```
 
+## Testing
 
+Everything appears to be working the way we expect.  However, issues do arise and we welcome any and all feedback you are able to provide.
 
  
