@@ -51,10 +51,99 @@ missing_pipeline = Pipeline([('new_cols', NewMissingColumn(cutoff=0)),
 new_X = missing_pipeline.fit_transform(train)
 new_X.shape
 
+#Do both of the above with a single call
 DI = DiaImputer(cont_impute="mode")
 DI.fit(train)
 new_X = DI.transform(train)
 new_X.shape
+
+
+########################################################################################################################
+#
+#  work out the linear transformations
+#
+########################################################################################################################
+#Below is the general structure of how the
+from transformations.transformations import DiaLog, DiaPoly, DiaSkew
+
+
+#Id and transform
+dl = DiaLog()
+new_X = dl.fit_transform(train)
+
+dp = DiaPoly()
+new_X = dp.fit_transform(train)
+
+ds = DiaSkew()
+new_X = ds.fit_transform(train)
+
+
+from sklearn.preprocessing import OneHotEncoder
+enc = OneHotEncoder()
+new_X = enc.fit_transform(train)
+
+
+########################################################################################################################
+#
+#  General testing framework to check the parformance
+#
+########################################################################################################################
+from sklearn.model_selection import KFold
+import lightgbm as lgb
+
+class TestThis(object):
+    def __init__(self, clf, compare_class, folds=5):
+        self.clf = clf
+        self.compare_class = compare_class
+        self.folds = folds
+
+    def fit(self, X, y):
+        #Cre# ate folds
+
+        kf = KFold(n_splits=self.folds)
+        self.raw_y_hat = []
+        self.trans_y_hat = []
+        self.lgb_y_hat = []
+        self.lgb_trans = []
+        for train_index, test_index in kf.split(X):
+            X_train, X_test = X.iloc[train_index], X.iloc[test_index]
+            y_train, y_test = y[train_index], y[test_index]
+
+            self.clf.fit(X_train, y_train)
+            self.raw_y_hat.extend(self.clf.predict(X_test))
+
+            gbm = lgb.LGBMRegressor()
+            gbm.fit(X_train, y_train)
+            self.lgb_y_hat.extend(gbm.predict(X_test))
+
+            self.compare_class.fit(X_train, y_train)
+            new_X = self.compare_class.transform(X_train)
+            new_test_X = self.compare_class.transform(X_test)
+
+            self.clf.fit(new_X, y_train)
+            self.trans_y_hat.extend(self.clf.predict(new_test_X))
+
+            gbm = lgb.LGBMRegressor()
+            gbm.fit(new_X, y_train)
+            self.lgb_trans.extend(gbm.predict(new_test_X))
+
+
+from sklearn.datasets import load_boston, load_diabetes
+from sklearn import linear_model
+dataset = load_diabetes()
+X, y = dataset.data, dataset.target
+X = pd.DataFrame(X)
+
+lasso = linear_model.Lasso()
+dp = DiaPoly()
+testing = TestThis(clf=lasso, compare_class=dp)
+testing.fit(X,y)
+
+from sklearn.metrics import mean_squared_error
+print("MSE raw data lasso " + str(mean_squared_error(testing.raw_y_hat, y)))
+print("MSE transformed lasso " + str(mean_squared_error(testing.trans_y_hat, y)))
+print("MSE raw data lightGBM " + str(mean_squared_error(testing.lgb_y_hat, y)))
+print("MSE transformed lightGBM " + str(mean_squared_error(testing.lgb_trans, y)))
 
 
 
