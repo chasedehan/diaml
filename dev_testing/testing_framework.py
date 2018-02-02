@@ -6,36 +6,46 @@
 #Benefits of this approach are that we can initialize the class a single time, then feed different datasets in to test
 
 import pandas as pd
+import numpy as np
 from dev_testing.testing_funs import FitPipelines
 from sklearn.datasets import load_boston, load_diabetes
 from sklearn import linear_model
 import lightgbm as lgb
 from transformations.transformations import DiaPoly
 from sklearn.pipeline import make_pipeline
+from sklearn.ensemble import RandomForestRegressor
 
-dataset = load_boston()
+dataset = load_diabetes()
 X, y = dataset.data, dataset.target
 X = pd.DataFrame(X)
+X.columns = ['Var_'+str(i) for i in X.columns]
+
+
 
 gbm = lgb.LGBMRegressor()
 lasso = linear_model.Lasso()
+ridge = linear_model.Ridge()
+alphas = np.logspace(-4, -0.5, 30)
 diaPoly = make_pipeline(DiaPoly(),
-                        linear_model.Lasso())
-diaPoly2 = make_pipeline(DiaPoly(replace=False),
-                        linear_model.Lasso())
-models = [lasso, gbm, diaPoly, diaPoly2]
-tp = FitPipelines(n_folds=5, clf_list=models)
+                        linear_model.Ridge())
+diaPoly2 = make_pipeline(DiaPoly(replace=False,subset_col=False),
+                        linear_model.LassoCV(alphas=alphas, max_iter=3000))
+rf = RandomForestRegressor()
+# diaPoly.fit(X,y)
+
+
+models = [gbm, rf, ridge, diaPoly]
+tp = FitPipelines(n_folds=3, clf_list=[ridge,diaPoly])
 tp.fit(X, y)
-# tp.results #results fromt he cv
+tp.results #results from the cv
 
 #Now to evaluate the results
-
 tp.eval_mse()
-tp.model_mse
 
 
 
-########################################################################################################################
+df = tp.results.copy()
+df['Avg1'] = (df.Model_1 + df.Model_3) / 2
+eval_mse(df)
 
 
-#Want to show how the predictions from LightGBM and XGBoost are pretty closely related, but LASSO isn't

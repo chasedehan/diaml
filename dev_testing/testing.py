@@ -104,7 +104,6 @@ class TestThis(object):
         self.raw_y_hat = []
         self.trans_y_hat = []
         self.lgb_y_hat = []
-        self.lgb_trans = []
         for train_index, test_index in kf.split(X):
             X_train, X_test = X.iloc[train_index], X.iloc[test_index]
             y_train, y_test = y[train_index], y[test_index]
@@ -123,10 +122,6 @@ class TestThis(object):
             self.clf.fit(new_X, y_train)
             self.trans_y_hat.extend(self.clf.predict(new_test_X))
 
-            gbm = lgb.LGBMRegressor()
-            gbm.fit(new_X, y_train)
-            self.lgb_trans.extend(gbm.predict(new_test_X))
-
 
 from sklearn.datasets import load_boston, load_diabetes
 from sklearn import linear_model
@@ -135,15 +130,78 @@ X, y = dataset.data, dataset.target
 X = pd.DataFrame(X)
 
 lasso = linear_model.Lasso()
+ridge = linear_model.Ridge()
 dp = DiaPoly()
+
 testing = TestThis(clf=lasso, compare_class=dp)
 testing.fit(X,y)
-
 from sklearn.metrics import mean_squared_error
 print("MSE raw data lasso " + str(mean_squared_error(testing.raw_y_hat, y)))
 print("MSE transformed lasso " + str(mean_squared_error(testing.trans_y_hat, y)))
 print("MSE raw data lightGBM " + str(mean_squared_error(testing.lgb_y_hat, y)))
-print("MSE transformed lightGBM " + str(mean_squared_error(testing.lgb_trans, y)))
+
+
+########################################################################################################################
+#
+#  Check on a single holdout
+#
+########################################################################################################################
+
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import train_test_split
+import lightgbm as lgb
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=42)
+
+#transformed
+dp = DiaPoly()
+dp.fit(X_train,y_train)
+new_X = dp.transform(X_train)
+new_X_test = dp.transform(X_test)
+ridge = linear_model.Ridge()
+ridge.fit(new_X,y_train)
+y_hat_ridge = ridge.predict(new_X_test)
+
+
+#lightGBM
+gbm = lgb.LGBMRegressor()
+gbm.fit(X_train,y_train)
+y_hat_gbm = gbm.predict(X_test)
+
+#lightGBM with dp
+gbm.fit(new_X, y_train)
+y_hat_gbm_dp = gbm.predict(new_X_test)
+
+#Basic Ridge
+ridge = linear_model.Ridge()
+ridge.fit(X_train,y_train)
+y_hat_ridge_all = ridge.predict(X_test)
+
+#Random Forest
+rf = RandomForestRegressor()
+rf.fit(X_train,y_train)
+y_hat_rf = rf.predict(X_test)
+#Random Forest with dp
+rf.fit(new_X,y_train)
+y_hat_rf_dp = rf.predict(new_X_test)
+
+#Try PolynomialFeatures Again:
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.pipeline import Pipeline
+model = Pipeline([('poly', PolynomialFeatures(degree=2)),
+                   ('ridge', linear_model.Ridge())])
+model.fit(new_X, y_train)
+y_hat_poly = model.predict(new_X_test)
+
+print("MSE raw ridge " + str(mean_squared_error(y_hat_ridge_all, y_test)))
+print("MSE transformed ridge " + str(mean_squared_error(y_hat_ridge, y_test)))
+print("MSE raw data lightGBM " + str(mean_squared_error(y_hat_gbm, y_test)))
+print("MSE transformed lightGBM " + str(mean_squared_error(y_hat_gbm_dp, y_test)))
+print("MSE raw data RandomForest " + str(mean_squared_error(y_hat_rf, y_test)))
+print("MSE transformed RandomForest " + str(mean_squared_error(y_hat_rf_dp, y_test)))
+print("MSE transformed polyFeatures " + str(mean_squared_error(y_hat_poly, y_test)))
+
+
 
 
 

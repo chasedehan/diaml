@@ -2,9 +2,9 @@
 
 
 import pandas as pd
-import numpy as np
 from sklearn.model_selection import KFold
 from sklearn.metrics import mean_squared_error
+from sklearn.base import clone
 
 class FitPipelines(object):
     def __init__(self, n_folds, clf_list):
@@ -21,6 +21,7 @@ class FitPipelines(object):
             df_y = pd.DataFrame({'Fold': this_fold, 'y': y_test})
 
             for i, clf in enumerate(self.clf_list):
+                clf = clone(clf)
                 clf.fit(X_train, y_train)
                 df_y["Model_"+str(i)] = clf.predict(X_test)
 
@@ -43,10 +44,12 @@ class FitPipelines(object):
 
 
 
-class EvalPipelines(object):
-    #Requires Dataframe in the form of a FitPipelines().results object
-    def __init__(self):
-        return self
+def eval_mse(df):
+    y_test = df['y']
+    df = df.drop(['y', 'Fold'], axis=1)
+    columns = df.columns
+    model_mse = {}
+    for col in columns:
+        model_mse[col] = mean_squared_error(y_test, df[col])
+    return(model_mse)
 
-    def evaluate(self):
-        return self

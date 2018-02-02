@@ -1,8 +1,8 @@
 #transformations.py
-from sklearn.base import TransformerMixin
+from sklearn.base import TransformerMixin, clone
 import numpy as np
 import pandas as pd
-from sklearn.linear_model import Ridge
+from sklearn.linear_model import Ridge, Lasso, LinearRegression
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.model_selection import KFold
 from sklearn.metrics import mean_squared_error, log_loss
@@ -34,33 +34,41 @@ class DiaPoly(TransformerMixin):
     """
     Class does polynomial interpolation to straighten an arbitrary set of points
     """
-    def __init__(self, n_folds=3, replace=True, degrees=None, reg=None):
+    def __init__(self, n_folds=3, replace=True, degrees=None, reg=None, subset_col=False):
         self.reg = reg
         self.n_folds = n_folds
         self.replace = replace
+        self.subset_col = subset_col
 
         if reg is not None:
             if type(reg) is not bool:
                 raise ValueError("'reg' must be True, False, or left to its defaults")
         if type(replace) is not bool:
             raise ValueError("'replace' must be True or False")
+        if type(subset_col) is not bool:
+            raise ValueError("'subset_col' must be True or False")
         if n_folds < 2:
             raise ValueError('n_folds must be > 1')
         if degrees is None:
-            self.degrees = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20]
-
+            self.degrees = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+            # self.degrees = [1, 2, 3]
     def _stringify_names(self):
         #Check to see if column names are strings, if they are ints (or RangeIndex), coerce into other values.
         return self
-    def subset_columns(self, X):  #TODO: error checking to coerce
-        columns = X.columns
-        run_columns = []
-        for col in columns:
-            this_col = X[col]
-            if this_col.dtype in ['int', 'float']:
-                if this_col.value_counts() > 2:
-                    run_columns.extend(col)
-        self.columns = run_columns
+    def _subset_columns(self, X):
+        #TODO: error checking; var names must be unique and strings
+
+        if self.subset_col:
+            columns = X.columns
+            run_columns = []
+            for col in columns:
+                this_col = X[col]
+                if this_col.dtype in ['int32', 'int64', 'float32', 'float64']:
+                    if len(this_col.value_counts()) > 2:
+                        run_columns.append(col)
+            self.run_columns = run_columns
+        else:
+            self.run_columns = X.columns
 
     def fit(self, X, y):
 
@@ -74,7 +82,7 @@ class DiaPoly(TransformerMixin):
             else:
                 self.reg = True
 
-        self.run_columns = X.columns #TODO: only include the relevant columns
+        self._subset_columns(X)
         kf = KFold(n_splits=self.n_folds)
         self.col_degrees = {}
         self.models = {}
@@ -86,7 +94,8 @@ class DiaPoly(TransformerMixin):
                 for train_index, test_index in kf.split(this_col):
                     X_train, X_test = this_col.iloc[train_index], this_col.iloc[test_index]
                     y_train, y_test = y[train_index], y[test_index]
-                    model = make_pipeline(PolynomialFeatures(degree), Ridge())
+                    model = make_pipeline(PolynomialFeatures(degree), LinearRegression()) #TODO: this was Ridge in the original
+                        #TODO: if we use LinearRegression(), there need to be a LogisticRegression() too!
                     model.fit(X_train, y_train)
                     y_hat = model.predict(X_test)
                     if self.reg:
@@ -97,7 +106,7 @@ class DiaPoly(TransformerMixin):
                 scores[degree] = np.mean(cv_scores)
             best_degree = min(scores.keys(), key=(lambda k: scores[k]))
             self.col_degrees[col_name] = best_degree
-            model = make_pipeline(PolynomialFeatures(best_degree), Ridge())
+            model = make_pipeline(PolynomialFeatures(best_degree), LinearRegression())
             model.fit(this_col, y)
             self.models[col_name] = model
         return self
@@ -105,23 +114,21 @@ class DiaPoly(TransformerMixin):
     def transform(self, X):
         if self.models is None:
             raise ValueError("You need to fit the model first")
-        #TODO: Don't replace if poly==1 . Right?
+
         this_X = X.copy()
 
+        transform_cols = self.col_degrees
         if self.replace:
-            for col_name in self.run_columns:
+            for col_name in transform_cols:
                 this_col = this_X[[col_name]].copy()
                 yhat = self.models[col_name].predict(this_col)
                 this_X[col_name] = yhat
         else:
-            for col_name in self.run_columns:
+            for col_name in transform_cols:
                 this_col = this_X[[col_name]].copy()
                 yhat = self.models[col_name].predict(this_col)
                 this_X[str(col_name)+'_pi'] = yhat           #insert a new column into the dataframe
         return this_X
-
-
-
 
 
 
