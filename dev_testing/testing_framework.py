@@ -15,7 +15,7 @@ from transformations.transformations import DiaPoly
 from sklearn.pipeline import make_pipeline
 from sklearn.ensemble import RandomForestRegressor
 
-dataset = load_diabetes()
+dataset = load_boston()
 X, y = dataset.data, dataset.target
 X = pd.DataFrame(X)
 X.columns = ['Var_'+str(i) for i in X.columns]
