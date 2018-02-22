@@ -13,15 +13,59 @@ There are a number of packages in existence that are similar and well constructe
 # Approach (Steps)
 Below are the independent modules to be called depending on the users preferences.  They are independent and can be used as a single piece in the entire pipeline.  There is no obligation to use all of the methods.
 1. Check dtypes, attempting to coerce any categorically coded variables into numeric
-2. Impute Missing Variables, also creating variables "IsMissing"
+2. Impute Missing Variables, also creating variables "IsMissing" (Mostly Complete)
 3. Outlier Detection and modification
-4. Feature transformations for a more linear representation
+4. Feature transformations for a more linear representation (Mostly Complete)
 5. Feature Selection - I already built a tool, BoostARoota to fill in some of this
 6. Hyperparameter Tuning of top X models
 7. Stacking models - this is a distinct step from (6) in that it doesn't limit the Data Scientist from passing in models (with parameters) they deem to have high value.  Essentially, the Data Scientist can pass in (6) plus any other models desired as long as it has a .fit() and .predict() method associated.
 
 # Installation
-Eventually, this will on PyPi, but it is still too rapidly being developed.  For now, just take a look around.
+Easiest way is to use `pip`:
+```
+$ pip install diaml
+```
+
+## Usage  
+
+This module is built to conform to sklearn's `fit()` and `transform()` methods.  Currently available classes are:  
+* `NewMissingColumn()`: creates a new column for each variable with NaN values above the cutoff threshold
+* `DataFrameImputer()`: imputes the most frequent value or user specified string for categorical, user choice (mean, median, mode) for continuous.
+  * This is implemented differently from sklearn's imputer because of the handling of categorical missing values
+* `DiaImputer()`: Executes NewMissingColumn and DataFrameImputer in a single call
+* `DiaPoly()`: Automatically transforms data into a more linear representation through polynomial interpolation
+  * This is probably the largest value add of the methods currently available
 
 
+To use the imputer and the polynomial interpolation you can run the following, assuming you have X and y already split:
+```python  
+from diaml import DiaImputer, DiaPoly
 
+# Below imputes continuous vars with "mode, while categorical variables are assigned a value of "missing_value"
+dfi = DataFrameImputer(cont_impute="mode", cat_impute="missing_value", missing_value="missing_value")
+new_X = dfi.fit_transform(X) # passing y is not necessary, but you can
+
+dp = DiaPoly()
+new_X = dp.fit_transform(new_X, y)
+```
+
+
+Alternatively, can place these inside of an sklearn Pipeline:
+```python
+from diaml import DiaImputer, DiaPoly
+from sklearn.pipeline import Pipeline
+
+
+dia_pipeline = Pipeline([('impute', DataFrameImputer()),
+                             ('poly', DiaPoly())])
+
+new_X = dia_pipeline.fit_transform(X,y)                          
+```
+
+
+## Want to Contribute?
+
+This project has found some initial successes and there are a number of directions it can head.  It would be great to have some additional help if you are willing/able.  Whether it is directly contributing to the codebase or just giving some ideas, any help is appreciated.  The goal is to make the algorithms as robust as possible.  The primary focus right now is on the components under Future Implementations, but are in active development.  Please reach out to see if there is anything you would like to contribute in that part to make sure we aren't duplicating work.  
+
+
+A special thanks to [Progressive Leasing](http://progleasing.com) for sponsoring this research.
